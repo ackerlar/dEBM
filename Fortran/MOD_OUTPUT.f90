@@ -13,7 +13,7 @@ MODULE MOD_OUTPUT
 
 contains
 
-SUBROUTINE write_output(lon_output, lat_output, snh_output, smb_output, melt_output, refr_output, albedo_output, snow_output, rain_output)
+SUBROUTINE write_output(lon_output, lat_output, snh_output, smb_output, melt_output, refr_output, albedo_output, snow_output, rain_output, beta_output)
   ! ************************************************************************
   ! * write_output produces write output files                             *
   ! * Variables includes: SNH, SMB, MELT, ACC, REFR, A                     *
@@ -32,7 +32,7 @@ SUBROUTINE write_output(lon_output, lat_output, snh_output, smb_output, melt_out
     include 'netcdf.inc'
 
     real(kind=WP), intent(in), dimension(:,:) :: lon_output, lat_output
-    real(kind=WP), intent(in), dimension(:,:,:,:) :: snh_output, smb_output, melt_output, refr_output, albedo_output, snow_output, rain_output
+    real(kind=WP), intent(in), dimension(:,:,:,:) :: snh_output, smb_output, melt_output, refr_output, albedo_output, snow_output, rain_output, beta_output
 
     character(len = *), parameter :: filename_out = "surface_mass_balance.nc"
 
@@ -45,7 +45,8 @@ SUBROUTINE write_output(lon_output, lat_output, snh_output, smb_output, melt_out
     integer :: tim_varid, lat_varid, lon_varid
     integer :: melt_varid, snh_varid, smb_varid,&
                 &refr_varid, albedo_varid,&
-                &snow_varid, rain_varid
+                &snow_varid, rain_varid,&
+                &beta_varid
 
     ! Define variables name
     character(len = *), parameter :: MELT_NAME = "ME"
@@ -55,6 +56,7 @@ SUBROUTINE write_output(lon_output, lat_output, snh_output, smb_output, melt_out
     character(len = *), parameter :: Albedo_NAME = "A"
     character(len = *), parameter :: RAIN_NAME = "RF"
     character(len = *), parameter :: SNOW_NAME = "SF"
+    character(len = *), parameter :: BETA_NAME = "BETA"
     ! Define variables units
     character(len = *), parameter :: UNITS = "units"
     character(len = *), parameter :: LON_UNITS = "degrees_east"
@@ -67,6 +69,7 @@ SUBROUTINE write_output(lon_output, lat_output, snh_output, smb_output, melt_out
     ! character(len = *), parameter :: Albedo_UNITS = ""
     character(len = *), parameter :: RAIN_UNITS = "kg m-2 second-1"
     character(len = *), parameter :: SNOW_UNITS = "kg m-2 second-1"
+    character(len = *), parameter :: BETA_UNITS = "W m-2 K-1"
     ! Define variables longname
     character(len = *), parameter :: LONGNAME = "long_name"
     character(len = *), parameter :: LON_LONGNAME = "longitude"
@@ -79,6 +82,7 @@ SUBROUTINE write_output(lon_output, lat_output, snh_output, smb_output, melt_out
     character(len = *), parameter :: Albedo_LONGNAME = "albedo"
     character(len = *), parameter :: RAIN_LONGNAME = "rain fall"
     character(len = *), parameter :: SNOW_LONGNAME = "snow fall"
+    character(len = *), parameter :: BETA_LONGNAME = "turbulent heat exchange coefficient"
 
     NLONS = xlen
     NLATS = ylen
@@ -194,6 +198,14 @@ SUBROUTINE write_output(lon_output, lat_output, snh_output, smb_output, melt_out
     status = nf_put_att_text(ncid, SNOW_varid, LONGNAME, len_trim(SNOW_LONGNAME), trim(SNOW_LONGNAME))
     if (status .ne. nf_noerr) call handle_err(status)
 
+    ! BETA
+    status = nf_def_var(ncid, BETA_NAME, NF_FLOAT, NDIMS, (/x_dimid, y_dimid, t_dimid/), BETA_varid)
+    if (status .ne. nf_noerr) call handle_err(status)
+    status = nf_put_att_text(ncid, BETA_varid, UNITS, len(BETA_UNITS), BETA_UNITS)
+    if (status .ne. nf_noerr) call handle_err(status)
+    status = nf_put_att_text(ncid, BETA_varid, LONGNAME, len_trim(BETA_LONGNAME), trim(BETA_LONGNAME))
+    if (status .ne. nf_noerr) call handle_err(status)
+
     ! Close define mode
     status = nf_enddef(ncid)
     if (status .ne. nf_noerr) call handle_err(status)
@@ -245,6 +257,9 @@ SUBROUTINE write_output(lon_output, lat_output, snh_output, smb_output, melt_out
          if (status .ne. nf_noerr) call handle_err(status)
          ! SNOW
          status = nf_put_vara_double(ncid, SNOW_varid, (/1, 1, start/), (/NLONS, NLATS, 1/), snow_output(:, :, m, n))
+         if (status .ne. nf_noerr) call handle_err(status)
+         ! BETA
+         status = nf_put_vara_double(ncid, BETA_varid, (/1, 1, start/), (/NLONS, NLATS, 1/), beta_output(:, :, m, n))
          if (status .ne. nf_noerr) call handle_err(status)
          start = start + 1
        end do

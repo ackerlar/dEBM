@@ -31,7 +31,8 @@ PROGRAM dEBMmain
   real(kind=WP), dimension(:,:,:,:), allocatable ::  snow_height, surface_mass_balance, &
                                               &melt_rate, accmulation_rate, &
                                               &refreeze_rate, albedo,&
-                                              &snow_amount, rain_rate
+                                              &snow_amount, rain_rate,&
+                                              &beta
   real(kind=WP), dimension(:), allocatable :: summer_solar_density
 
   write(*,*) "Starting calculating dEBM..."
@@ -51,6 +52,7 @@ PROGRAM dEBMmain
   allocate (albedo( xlen, ylen, mlen, nlen))
   allocate (snow_amount( xlen, ylen, mlen, nlen))
   allocate (rain_rate( xlen, ylen, mlen, nlen))
+  allocate (beta( xlen, ylen, mlen, nlen))
   allocate (summer_solar_density(nlen))
   snow_height(:,:,:,:)          = 0.0_WP
   surface_mass_balance(:,:,:,:) = 0.0_WP
@@ -60,6 +62,7 @@ PROGRAM dEBMmain
   albedo(:,:,:,:)               = 0.0_WP
   snow_amount(:,:,:,:)          = 0.0_WP
   rain_rate(:,:,:,:)            = 0.0_WP
+  beta(:,:,:,:)                 = 0.0_WP
   summer_solar_density(:)       = 0.0_WP
 
   ! Init snow height from restart or spin-up
@@ -90,7 +93,8 @@ PROGRAM dEBMmain
                     &lat(:,:,:,n), mask1, obliquity, mth_str, &
                     &snow_height(:,:,:,n), surface_mass_balance(:,:,:,n), melt_rate(:,:,:,n), refreeze_rate(:,:,:,n), &
                     &albedo(:,:,:,n), &
-                    &snow_amount(:,:,:,n), rain_rate(:,:,:,n), summer_solar_density(n))
+                    &snow_amount(:,:,:,n), rain_rate(:,:,:,n), summer_solar_density(n), &
+                    &beta(:,:,:,n))
     snh_Dec = snow_height(:,:,12,1)
     snh_Sep = snow_height(:,:,9,1)
     ! Second, we recalculate the first year from Jan to Dec
@@ -101,7 +105,8 @@ PROGRAM dEBMmain
                     &lat(:,:,:,n), mask1, obliquity, mth_str, &
                     &snow_height(:,:,:,n), surface_mass_balance(:,:,:,n), melt_rate(:,:,:,n), refreeze_rate(:,:,:,n), &
                     &albedo(:,:,:,n), &
-                    &snow_amount(:,:,:,n), rain_rate(:,:,:,n), summer_solar_density(n))
+                    &snow_amount(:,:,:,n), rain_rate(:,:,:,n), summer_solar_density(n), &
+                    &beta(:,:,:,n))
     snh_Dec = snow_height(:,:,12,1)
     snh_Sep = snow_height(:,:,9,1)
     write(*,*) "Finish spin-up"
@@ -120,7 +125,8 @@ PROGRAM dEBMmain
                     &lat(:,:,:,n), mask1, obliquity, mth_str, &
                     &snow_height(:,:,:,n), surface_mass_balance(:,:,:,n), melt_rate(:,:,:,n), refreeze_rate(:,:,:,n), &
                     &albedo(:,:,:,n), &
-                    &snow_amount(:,:,:,n), rain_rate(:,:,:,n), summer_solar_density(n))
+                    &snow_amount(:,:,:,n), rain_rate(:,:,:,n), summer_solar_density(n), &
+                    &beta(:,:,:,n))
     snh_Dec = snow_height(:,:,12,n)
     snh_Sep = snow_height(:,:,9,n)
   end do
@@ -132,6 +138,7 @@ PROGRAM dEBMmain
     write(*,*) "melt_rate",melt_rate(debug_lon, debug_lat, debug_mon, debug_year)
     write(*,*) "albedo",albedo(debug_lon, debug_lat, debug_mon, debug_year)
     write(*,*) "summer_solar_density",summer_solar_density(7)
+    write(*,*) "beta",beta(debug_lon, debug_lat, debug_mon, debug_year)
   end if
 
   ! Write restart
@@ -147,9 +154,10 @@ PROGRAM dEBMmain
   ! Write_output
   CALL write_output(lon0, lat0, snow_height, surface_mass_balance, melt_rate,&
                       &refreeze_rate, albedo,&
-                      &snow_amount, rain_rate)
+                      &snow_amount, rain_rate,&
+                      &beta)
   ! deallocate
-  deallocate(snow_height,surface_mass_balance,melt_rate,accmulation_rate,refreeze_rate,albedo,snow_amount,rain_rate,summer_solar_density)
+  deallocate(snow_height,surface_mass_balance,melt_rate,accmulation_rate,refreeze_rate,albedo,snow_amount,rain_rate,summer_solar_density,beta)
   deallocate(snh_Dec,snh_Sep)
 
 END PROGRAM dEBMmain

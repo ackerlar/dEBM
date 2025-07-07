@@ -24,7 +24,7 @@ MODULE MOD_MAIN
 contains
 
 SUBROUTINE dEBM_core(tempm, swdm, swd_TOAm, emissm, clcov, uvm, ppm, tmpSNH, lastyear, latm, mask, obl, mth_str, SNH, SMB, MELT, &
-  &REFR, A, SNOW, RAIN, S07)
+  &REFR, A, SNOW, RAIN, S07, beta2D)
     ! ************************************************************************
     ! * dEBM_core calculates the surface mass blance                         *
     ! ************************************************************************
@@ -103,11 +103,9 @@ SUBROUTINE dEBM_core(tempm, swdm, swd_TOAm, emissm, clcov, uvm, ppm, tmpSNH, las
     real(kind=WP), dimension(12) :: S0
     integer, dimension(3) :: min_lat_idx
     real(kind=WP) :: swd_lat_min, fluxfactor
-    real(kind=WP), allocatable, dimension(:,:) :: beta2D 
+    real(kind=WP), intent(out), dimension(:,:,:) :: beta2D 
 
     !
-    allocate (beta2D(xlen, ylen))
-    beta2D=0.0_WP
     allocate (hoursns(xlen, ylen), qns(xlen, ylen), fluxfacns(xlen, ylen))
     hoursns=0.0_WP; qns=0.0_WP; fluxfacns=0.0_WP
     allocate (hoursds(xlen, ylen), qds(xlen, ylen), fluxfacds(xlen, ylen))
@@ -181,6 +179,7 @@ SUBROUTINE dEBM_core(tempm, swdm, swd_TOAm, emissm, clcov, uvm, ppm, tmpSNH, las
     RAIN(:,:,:)   = 0.0_WP
     SNOW(:,:,:)   = 0.0_WP
     wet_snow(:,:) = .FALSE.
+    beta2D(:,:,:) = 0.0_WP
 
     do month = mth_str, 12
 
@@ -257,20 +256,20 @@ SUBROUTINE dEBM_core(tempm, swdm, swd_TOAm, emissm, clcov, uvm, ppm, tmpSNH, las
       if (beta_nml > 0.0_WP) then
         beta2D = beta_nml
       elseif (lwind_given) then
-        beta2D = min(4.*uv, 12.)
+        beta2D(:,:,month) = min(4.*uv, 12.)
       else
         beta2D = beta
       end if
       if (debug_switch) then
-        write(*,*) "beta2D",beta2D(debug_lon, debug_lat)
+        write(*,*) "beta2D",beta2D(debug_lon, debug_lat, month)
         write(*,*) "beta_nml",beta_nml
       end if
       ! c1, c2 are determined locally and monthly
       ! see Krebs-Kanzow et al, 2018
       c2cs = (-epsi+epsa_cst*epsi)*bolz*(T0**4)-residual
-      c1cs = (epsi*epsa_cst*4.*bolz*(T0**3)+beta2D)
+      c1cs = (epsi*epsa_cst*4.*bolz*(T0**3)+beta2D(:,:,month))
       c2oc = (-epsi+epsa_oct*epsi)*bolz*(T0**4)-residual
-      c1oc = (epsi*epsa_oct*4.*bolz*(T0**3)+beta2D)
+      c1oc = (epsi*epsa_oct*4.*bolz*(T0**3)+beta2D(:,:,month))
       winkelns = asin(max(-1.0_WP,min(1.0_WP,-c2cs/(1.0_WP-Ans)/(S0(month)*tau_cs))))*180.0_WP/pi
       winkelds = asin(max(-1.0_WP,min(1.0_WP,-c2cs/(1.0_WP-Ads)/(S0(month)*tau_cs))))*180.0_WP/pi
       winkelws = asin(max(-1.0_WP,min(1.0_WP,-c2cs/(1.0_WP-Aws)/(S0(month)*tau_cs))))*180.0_WP/pi
@@ -449,6 +448,9 @@ SUBROUTINE dEBM_fluxfac(mth, latm, obl, sol_flux_fact_0)
   real(kind=WP), allocatable, dimension(:,:) :: sinphisind,cosphicosd
   real(kind=WP), allocatable, dimension(:,:) :: ha_0
 
+  real(kind=WP), dimension(1200,1200)              :: a, b
+  a = 2
+  b = 3
   ! calcualtes declination decl
   allocate (decl(xlen, ylen))
   decl=0.
@@ -467,9 +469,9 @@ SUBROUTINE dEBM_fluxfac(mth, latm, obl, sol_flux_fact_0)
   sinphisind = sin(pi/180.0_WP*latm)*sin(pi/180.0_WP*decl)
   cosphicosd = cos(pi/180.0_WP*latm)*cos(pi/180.0_WP*decl)
   allocate (ha_0(xlen, ylen))
-   where (-sinphisind/cosphicosd > 1.0_WP)
+   where (-sinphisind/cosphicosd >= 1.0_WP)
      ha_0 = 0.0_WP  ! acos(1.)
-   elsewhere (-sinphisind/cosphicosd < -1.0_WP)
+   elsewhere (-sinphisind/cosphicosd <= -1.0_WP)
      ha_0 = pi      ! acos(-1.)
    elsewhere
      ha_0 = acos(-sinphisind/cosphicosd)
